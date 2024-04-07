@@ -2,8 +2,7 @@ package Logic
 
 import scala.collection.mutable.*
 
-class Room(val height: Int, val width: Int, private var doorSize: Int,
-           private val residents: Buffer[Human]):
+class Room(val height: Int, val width: Int, private var doorSize: Int, private val residents: Buffer[Human]):
   
       def updateResidents() =
         ???
@@ -15,3 +14,5 @@ class Room(val height: Int, val width: Int, private var doorSize: Int,
       def getResidents = this.residents
   
 end Room
+
+//val height: Int, val width: Int,
