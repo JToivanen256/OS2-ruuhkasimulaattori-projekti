@@ -30,6 +30,13 @@ class Vector2D(var x: Double, var y: Double):
     if scalingFactor >= 1 then this else Vector2D(this.x * scalingFactor, this.y * scalingFactor)
     
   def distance(other: Vector2D): Double = this.minus(other).length
+  
+  def checkBorders(xstart: Int, xend: Int, ystart: Int, yend: Int, door: Int): Vector2D =
+    var x = max(this.x, xstart)
+    x = min(x, xend)
+    var y = min(this.y, yend)
+    y = if x > 157 - door / 2 && x < 157 + door / 2 then y else max(y, ystart)
+    Vector2D(x, y)
 
   //def inside(corner1, corner2, corner3, corner4): Boolean = ???
     

@@ -13,14 +13,17 @@ import scalafx.scene.shape.Circle
 import scala.collection.mutable.Buffer
 import scala.language.postfixOps
 
+
 object simulatorApp extends JFXApp3:
 
   val randGen = scala.util.Random(System.nanoTime())
   val IO = fileReader
-  val room = Room(450, 320, 60, Buffer[Human]())
-  var humans = IO.load(room)
-  humans.foreach(h => room.addResident(h))
-  var circles = Buffer[Circle]()
+  val simRoom = Room(450, 320, IO.loadDoorWidth, Buffer[Human]())
+  simRoom.addResidents(IO.loadHumans(simRoom)) //made in this order because a human needs to know its host room
+  val circles = simRoom.getResidents.map(h => Circle(h.location.x, h.location.y, 10, Green))
+  val simSpeed = IO.loadSimSpeed
+  val abruptness = IO.loadAbruptness
+
 
   def start() =
     stage = new JFXApp3.PrimaryStage:
@@ -31,133 +34,133 @@ object simulatorApp extends JFXApp3:
 
     val root = GridPane()
 
-      // Create some components to add to the grid
-      val topBox = Pane()
-      val leftBox = Pane()
-      val bottomBox = Pane()
+    // Create some components to add to the grid
+    val topBox = Pane()
+    val leftBox = Pane()
+    val bottomBox = Pane()
 
-      val simBox = Pane()
-      simBox.background = Background.fill(Gray)
+    val simBox = Pane()
+    simBox.background = Background.fill(Gray)
+    circles.foreach(c => simBox.children += c)
 
-      val rightBox = VBox()
-      rightBox.background = Background.fill(CornflowerBlue)
-      rightBox.padding = Insets(10, 20, 10, 20)
-      rightBox.spacing = 20
-      val lbl = Label("Ruuhkasimulaattori")
-      lbl.font = Font("System", FontWeight.ExtraBold, 25)
-      rightBox.children += lbl
+    val rightBox = VBox()
+    rightBox.background = Background.fill(CornflowerBlue)
+    rightBox.padding = Insets(10, 20, 10, 20)
+    rightBox.spacing = 20
+    val lbl = Label("Ruuhkasimulaattori")
+    lbl.font = Font("System", FontWeight.ExtraBold, 25)
+    rightBox.children += lbl
 
-      val buttonBox = HBox()
-      buttonBox.padding = Insets(0, 0, 0, 55)
-      buttonBox.spacing = 10
-      val pauseButton = Button("Pause")
-      val continueButton = Button("Continue")
-      buttonBox.children += pauseButton
-      buttonBox.children += continueButton
-      rightBox.children += buttonBox
+    val buttonBox = HBox()
+    buttonBox.padding = Insets(0, 0, 0, 55)
+    buttonBox.spacing = 10
+    val pauseButton = Button("Pause")
+    val continueButton = Button("Continue")
+    buttonBox.children += pauseButton
+    buttonBox.children += continueButton
+    rightBox.children += buttonBox
 
-      val buttonBox2 = HBox()
-      buttonBox2.padding = Insets(0, 0, 0, 65)
-      buttonBox2.spacing = 10
-      val addButton = Button("+")
-      val reset = Button("reset")
-      val removeButton = Button("-")
-      buttonBox2.children += addButton
-      buttonBox2.children += reset
-      buttonBox2.children += removeButton
-      rightBox.children += buttonBox2
+    val buttonBox2 = HBox()
+    buttonBox2.padding = Insets(0, 0, 0, 65)
+    buttonBox2.spacing = 10
+    val addButton = Button("+")
+    val reset = Button("reset")
+    val removeButton = Button("-")
+    buttonBox2.children += addButton
+    buttonBox2.children += reset
+    buttonBox2.children += removeButton
+    rightBox.children += buttonBox2
 
-      val speedSlider = Slider(0.5, 2.5, 1.5)
-      rightBox.children += Label("                   simulation speed:")
-      rightBox.children += speedSlider
-      val abruptnessSlider = Slider(0.02, 0.5, 0.26)
-      rightBox.children += Label("                        abruptness:")
-      rightBox.children += abruptnessSlider
-      rightBox.children += Label("                        doorsize?:")
-      rightBox.children += Slider(0, 300, 150)
+    val speedSlider = Slider(0.5, 2.5, simSpeed)
+    speedSlider.value.onChange((_, _, v)=> simRoom.setSimulationSpeed(v.toString.toDouble))
+    rightBox.children += Label("                   simulation speed:")
+    rightBox.children += speedSlider
+    val abruptnessSlider = Slider(0.02, 0.5, abruptness)
+    abruptnessSlider.value.onChange((_, _, v)=> simRoom.setAbruptness(v.toString.toDouble))
+    rightBox.children += Label("                        abruptness:")
+    rightBox.children += abruptnessSlider
+    val doorSizeSlider = Slider(10, 110, simRoom.getDoorSize)
+    doorSizeSlider.value.onChange((_, _, v)=> simRoom.setDoorSize(v.toString.toDouble.toInt)) //some weird stuff happens if toDouble is left otu
+    rightBox.children += Label("                         doorsize:")
+    rightBox.children += doorSizeSlider
 
-      // Add child components to the grid
-      root.add(simBox, 1, 1)
-      root.add(topBox, 0, 0, 3, 1)
-      root.add(leftBox, 0, 1)
-      root.add(rightBox, 3, 1)
-      root.add(bottomBox, 0, 2, 3, 1)
+    // Add child components to the grid
+    root.add(simBox, 1, 1)
+    root.add(topBox, 0, 0, 3, 1)
+    root.add(leftBox, 0, 1)
+    root.add(rightBox, 3, 1)
+    root.add(bottomBox, 0, 2, 3, 1)
 
-      room.getResidents.foreach(h => circles += Circle(h.location.x, h.location.y, 10, Green))
-      circles.foreach(c => simBox.children += c)
+    def remove(index: Int) =
+        this.simRoom.removeResident(index)
+        simBox.children.remove(index)
+        this.circles.remove(index)
 
-      def remove(index: Int) =
-          this.room.removeResident(index)
-          simBox.children.remove(index)
-          this.circles.remove(index)
+    def add(x: Double, y: Double) =
+      this.simRoom.addResident(Human(1, Vector2D(x, y), Vector2D(0, 0), abruptnessSlider.getValue, speedSlider.getValue, 0, this.simRoom))
+      val c = Circle(x, y, 10, Green)
+      this.circles += c
+      simBox.children += c
 
-      def add(x: Double, y: Double) =
-        this.room.addResident(Human(1, Vector2D(x, y), Vector2D(0, 0), abruptnessSlider.getValue, speedSlider.getValue, 0, this.room))
-        val c = Circle(x, y, 10, Green)
-        this.circles += c
-        simBox.children += c
+    addButton.onAction = event =>
+      val x = randGen.nextInt(300)
+      val y = randGen.nextInt(400)
+      add(x, y)
 
-      addButton.onAction = event =>
-        val x = randGen.nextInt(300)
-        val y = randGen.nextInt(400)
-        add(x, y)
+    removeButton.onAction = event =>
+      if this.simRoom.getResidents.nonEmpty then
+        val index = randGen.nextInt(this.simRoom.getResidents.length)
+        remove(index)
 
-      removeButton.onAction = event =>
-        if this.room.getResidents.nonEmpty then
-          val index = randGen.nextInt(this.room.getResidents.length)
-          remove(index)
+    def animationUpdate() =
+      val humans = this.simRoom.getResidents
+      def updateHumanGraphics(index: Int) =
+        humans(index).calculateHeading()
+        circles(index).centerY = humans(index).location.y
+        circles(index).centerX = humans(index).location.x
+      var i = 0 //while loop so that removing instances of humans doesn't cause problems
+      while i < humans.length do
+        if !humans(i).ready then updateHumanGraphics(i) else remove(i)
+        i += 1
 
-      def animationUpdate() =
-        this.room.setSimulationSpeed(speedSlider.getValue)
-        this.room.setAbruptness(abruptnessSlider.getValue)
-        val humans = this.room.getResidents
-        def updateHumanGraphics(index: Int) =
-          humans(index).calculateHeading()
-          circles(index).centerY = humans(index).location.y
-          circles(index).centerX = humans(index).location.x
-        var i = 0 //while loop so that removing instances of humans doesn't cause problems
-        while i < humans.length do
-          if !humans(i).ready then updateHumanGraphics(i) else remove(i)
-          i += 1
+    val timer = AnimationTimer(t => animationUpdate())
 
-      val timer = AnimationTimer(t => animationUpdate())
+    continueButton.onAction = event => timer.start()
+    pauseButton.onAction = event => timer.stop()
 
-      continueButton.onAction = event => timer.start()
-      pauseButton.onAction = event => timer.stop()
-
-      reset.onAction = event =>
-        simBox.children.indices.foreach(i => simBox.children.remove(0))
-        this.circles.indices.foreach(i => circles.remove(0))
-        this.room.purge()
-        this.humans = Buffer(Human(1, Vector2D(20, 300), Vector2D(20, 300), 0.5, 1, 1, room), Human(1, Vector2D(300, 400), Vector2D(0,-10), 0.5, 1.5, 1, room),
-                      Human(1, Vector2D(50, 450), Vector2D(0,-10), 0.5, 1.5, 1, room))
-        this.humans.foreach(h => room.addResident(h))
-        this.room.getResidents.foreach(h => this.circles += Circle(h.location.x, h.location.y, 10, Green))
-        this.circles.foreach(c => simBox.children += c)
+    reset.onAction = event =>
+      simBox.children.clear()
+      this.circles.clear()
+      this.simRoom.clear()
+      val newHumans = Buffer(Human(1, Vector2D(10, 10), Vector2D(20, 300), simRoom.abruptness, simRoom.simSpeed, 1, simRoom),
+                             Human(1, Vector2D(310, 400), Vector2D(0,-10), simRoom.abruptness, simRoom.simSpeed, 1, simRoom),
+                             Human(1, Vector2D(50, 440), Vector2D(0,-10), simRoom.abruptness, simRoom.simSpeed, 1, simRoom))
+      this.simRoom.addResidents(newHumans)
+      this.simRoom.getResidents.foreach(h => this.circles += Circle(h.location.x, h.location.y, 10, Green))
+      this.circles.foreach(c => simBox.children += c)
 
 
-      val column0 = new ColumnConstraints:
-        percentWidth = 7.5
-      val column1 = new ColumnConstraints:
-        percentWidth = 40
-      val column2 = new ColumnConstraints:
-        percentWidth = 10
-      val column3 = new ColumnConstraints:
-        percentWidth = 35
-      val row0 = new RowConstraints:
-        percentHeight = 10
-      val row1 = new RowConstraints:
-        percentHeight = 80
-      val row2 = new RowConstraints:
-        percentHeight = 10
+    val column0 = new ColumnConstraints:
+      percentWidth = 7.5
+    val column1 = new ColumnConstraints:
+      percentWidth = 41
+    val column2 = new ColumnConstraints:
+      percentWidth = 10
+    val column3 = new ColumnConstraints:
+      percentWidth = 35
+    val row0 = new RowConstraints:
+      percentHeight = 10
+    val row1 = new RowConstraints:
+      percentHeight = 80
+    val row2 = new RowConstraints:
+      percentHeight = 10
 
-      root.columnConstraints = Array(column0, column1, column2, column3) // Add constraints in order
-      root.rowConstraints = Array(row0, row1, row2)
+    root.columnConstraints = Array(column0, column1, column2, column3) // Add constraints in order
+    root.rowConstraints = Array(row0, row1, row2)
 
     val scene = Scene(parent = root)
     stage.scene = scene
-
-    stage.onCloseRequest = event => IO.save(this.room)
+    stage.onCloseRequest = event => IO.save(this.simRoom)
 
   end start
 
